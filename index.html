@@ -5,9 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Promoções</title>
 <style>
-  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}
-  img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .8s}
-  img.show{opacity:1}
+  html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden;cursor:none}
+
+  .slide{position:absolute;inset:0;opacity:0;transition:opacity .8s}
+  .slide.show{opacity:1}
+  .slide img{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* default ("blur"): full image visible + blurred copy fills the empty sides */
+  .slide .fg{object-fit:contain}
+  .slide .bg{object-fit:cover;filter:blur(40px) brightness(.55);transform:scale(1.15)}
+
+  /* other modes, chosen with ?fit=... in the URL */
+  .fit-contain .bg{display:none}                    /* black bars */
+  .fit-cover   .bg{display:none} .fit-cover .fg{object-fit:cover}  /* fills screen, may crop */
+  .fit-fill    .bg{display:none} .fit-fill  .fg{object-fit:fill}   /* fills screen, may stretch */
+
   #msg{position:absolute;inset:0;display:grid;place-items:center;color:#777;font:20px sans-serif}
 </style>
 </head>
@@ -19,7 +31,12 @@
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const msg = document.getElementById("msg");
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-let items = [], i = 0, currentImg = null;
+
+// ?fit=blur (default) | contain | cover | fill
+const fit = new URLSearchParams(location.search).get("fit");
+document.body.classList.add("fit-" + (["contain", "cover", "fill"].includes(fit) ? fit : "blur"));
+
+let items = [], i = 0, current = null;
 
 async function load() {
   const { data, error } = await db.from("promotions").select("*")
@@ -33,14 +50,15 @@ async function load() {
 }
 
 function show(url) {
-  const img = document.createElement("img");
-  img.src = url;
-  document.body.appendChild(img);
-  img.offsetWidth;                // force the browser to apply the starting style
-  img.classList.add("show");
-  const old = currentImg;
+  const slide = document.createElement("div");
+  slide.className = "slide";
+  slide.innerHTML = `<img class="bg" src="${url}" alt=""><img class="fg" src="${url}" alt="">`;
+  document.body.appendChild(slide);
+  slide.offsetWidth;               // force the browser to apply the starting style
+  slide.classList.add("show");
+  const old = current;
   if (old) { old.classList.remove("show"); setTimeout(() => old.remove(), 900); }
-  currentImg = img;
+  current = slide;
 }
 
 async function loop() {
