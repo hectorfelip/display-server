@@ -20,6 +20,10 @@
   .fit-cover   .bg{display:none} .fit-cover .fg{object-fit:cover}  /* fills screen, may crop */
   .fit-fill    .bg{display:none} .fit-fill  .fg{object-fit:fill}   /* fills screen, may stretch */
 
+  /* in full screen (and no ?fit in the URL): cover the whole screen */
+  body.is-fs .bg{display:none}
+  body.is-fs .fg{object-fit:cover}
+
   #msg{position:absolute;inset:0;display:grid;place-items:center;color:#777;font:20px sans-serif}
 </style>
 </head>
@@ -35,6 +39,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 // ?fit=blur (default) | contain | cover | fill
 const fit = new URLSearchParams(location.search).get("fit");
 document.body.classList.add("fit-" + (["contain", "cover", "fill"].includes(fit) ? fit : "blur"));
+
+// Full screen detection: works for double-click/F key AND for the browser's F11
+function checkFullscreen() {
+  const fs = !!document.fullscreenElement ||
+    (innerWidth >= screen.width - 2 && innerHeight >= screen.height - 2);
+  document.body.classList.toggle("is-fs", fs && !fit);   // an explicit ?fit= always wins
+}
+["resize", "fullscreenchange"].forEach(ev => addEventListener(ev, checkFullscreen));
+document.addEventListener("fullscreenchange", checkFullscreen);
+checkFullscreen();
+// double-click or press F to enter/exit full screen (browsers require a user action)
+function toggleFs() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
+addEventListener("dblclick", toggleFs);
+addEventListener("keydown", e => { if (e.key.toLowerCase() === "f") toggleFs(); });
 
 let items = [], i = 0, current = null;
 
