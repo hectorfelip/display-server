@@ -5,129 +5,299 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Admin - Promoções</title>
 <style>
-  body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222}
-  input,button{font:inherit;padding:8px;margin:4px 0}
-  button{cursor:pointer}
-  .card{border:1px solid #ddd;border-radius:8px;padding:12px;margin:12px 0}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-  .item img{width:100%;height:120px;object-fit:cover;border-radius:6px}
-  .off{opacity:.45}
-  small{color:#666}
-  #err{color:#b00020}
+  :root{--bg:#f4f5f7;--card:#fff;--line:#e2e4e9;--txt:#1d2430;--mut:#6b7280;--pri:#2563eb;--ok:#16a34a;--warn:#d97706;--bad:#dc2626}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:15px system-ui,sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  header h1{font-size:18px;margin:0;flex:1}
+  main{max-width:1100px;margin:0 auto;padding:20px}
+  button,input{font:inherit}
+  button{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
+  button:hover{background:#f0f2f5}
+  button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+  button.pri:hover{background:#1d4ed8}
+  input{padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+
+  #drop{border:2px dashed #b6bcc8;border-radius:12px;padding:36px 16px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s;background:#fafbfc}
+  #drop.over{border-color:var(--pri);background:#eff4ff;color:var(--pri)}
+  #drop b{display:block;font-size:17px;color:var(--txt);margin-bottom:4px}
+  .opts{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+  .opts label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px;flex:1;min-width:150px}
+
+  #queue{margin-top:10px;font-size:14px}
+  #queue div{padding:4px 0;color:var(--mut)}
+
+  .bar{display:flex;align-items:center;gap:10px;margin:8px 0 12px}
+  .bar h2{font-size:16px;margin:0;flex:1}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
+  .item.dragging{opacity:.4}
+  .item.dropbefore{outline:3px solid var(--pri)}
+  .thumb{position:relative;background:#111;aspect-ratio:16/9}
+  .thumb img{width:100%;height:100%;object-fit:contain;display:block}
+  .badge{position:absolute;top:8px;left:8px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}
+  .live{background:var(--ok)}.sched{background:var(--pri)}.exp{background:var(--bad)}.paused{background:#6b7280}
+  .num{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.65);color:#fff;border-radius:99px;padding:2px 9px;font-size:12px}
+  .body{padding:10px;display:flex;flex-direction:column;gap:8px}
+  .body label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .acts{display:flex;gap:6px;flex-wrap:wrap}
+  .acts button{flex:1;padding:6px}
+  .del{color:var(--bad)}
+  .item.paused-card .thumb img{opacity:.4}
+  .empty{color:var(--mut);padding:30px;text-align:center}
+
+  #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1d2430;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:20}
+  #toast.show{opacity:1}
+  #toast.err{background:var(--bad)}
+  #login{max-width:340px;margin:60px auto}
+  #login input{margin-bottom:10px}
 </style>
 </head>
 <body>
-<h1>Promoções</h1>
-<p id="err"></p>
+<header>
+  <h1>Promoções</h1>
+  <a id="viewLink" href="index.html" target="_blank"><button id="viewBtn" hidden>Ver a tela ↗</button></a>
+  <button id="outBtn" onclick="logout()" hidden>Sair</button>
+</header>
 
-<div id="login" class="card" hidden>
-  <h3>Login</h3>
-  <input id="email" type="email" placeholder="email"><br>
-  <input id="pass" type="password" placeholder="password"><br>
-  <button onclick="login()">Entrar</button>
-</div>
-
-<div id="app" hidden>
-  <button onclick="logout()" style="float:right">Sair</button>
-  <div class="card">
-    <h3>Nova imagem</h3>
-    <input id="file" type="file" accept="image/*"><br>
-    <input id="title" placeholder="Título (opcional)"><br>
-    <label>Segundos na tela: <input id="dur" type="number" value="8" min="2" style="width:70px"></label><br>
-    <label>Começa em: <input id="starts" type="datetime-local"></label>
-    <label>Termina em: <input id="ends" type="datetime-local"></label><br>
-    <button id="upBtn" onclick="upload()">Enviar</button>
+<main>
+  <div id="login" class="box" hidden>
+    <h3 style="margin-top:0">Login</h3>
+    <input id="email" type="email" placeholder="email" autocomplete="username">
+    <input id="pass" type="password" placeholder="senha" autocomplete="current-password">
+    <button class="pri" style="width:100%" onclick="login()">Entrar</button>
   </div>
-  <h3>Imagens <small>(ordem de exibição, da esquerda para a direita)</small></h3>
-  <div id="list" class="grid"></div>
-  <p><small>Link da tela: <a href="display.html" target="_blank">display.html</a></small></p>
-</div>
+
+  <div id="app" hidden>
+    <div class="box">
+      <div id="drop" tabindex="0">
+        <b>Arraste as imagens aqui</b>
+        ou clique para escolher (várias de uma vez) · ou cole com Ctrl+V
+      </div>
+      <input id="file" type="file" accept="image/*" multiple hidden>
+      <div class="opts">
+        <label>Segundos na tela (padrão)<input id="dur" type="number" value="8" min="2"></label>
+        <label>Começa em (opcional)<input id="starts" type="datetime-local"></label>
+        <label>Termina em (opcional)<input id="ends" type="datetime-local"></label>
+      </div>
+      <div id="queue"></div>
+    </div>
+
+    <div class="bar">
+      <h2>Imagens <small id="count" style="color:var(--mut);font-weight:400"></small></h2>
+      <small style="color:var(--mut)">Arraste os cartões para mudar a ordem</small>
+    </div>
+    <div id="list" class="grid"></div>
+  </div>
+</main>
+<div id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="config.js"></script>
 <script>
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
-const fail = e => { $("err").textContent = e ? (e.message || e) : ""; };
-let rows = [];
+let rows = [], dragId = null;
 
+/* ---------- helpers ---------- */
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(msg, isErr) {
+  const t = $("toast"); t.textContent = msg; t.className = "show" + (isErr ? " err" : "");
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = "", isErr ? 4500 : 1800);
+}
+const toLocalInput = iso => { if (!iso) return ""; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+const toISO = v => v ? new Date(v).toISOString() : null;
+function status(p) {
+  const n = Date.now();
+  if (!p.active) return ["Pausada", "paused"];
+  if (p.starts_at && new Date(p.starts_at) > n) return ["Agendada", "sched"];
+  if (p.ends_at && new Date(p.ends_at) < n) return ["Expirada", "exp"];
+  return ["No ar", "live"];
+}
+
+/* ---------- auth ---------- */
 async function init() {
   const { data } = await db.auth.getSession();
   const logged = !!data.session;
-  $("login").hidden = logged;
-  $("app").hidden = !logged;
+  $("login").hidden = logged; $("app").hidden = !logged;
+  $("outBtn").hidden = !logged; $("viewBtn").hidden = !logged;
   if (logged) refresh();
 }
 async function login() {
-  fail();
-  const { error } = await db.auth.signInWithPassword({ email: $("email").value, password: $("pass").value });
-  if (error) return fail(error);
+  const { error } = await db.auth.signInWithPassword({ email: $("email").value.trim(), password: $("pass").value });
+  if (error) return toast("Login falhou: " + error.message, true);
   init();
 }
 async function logout() { await db.auth.signOut(); init(); }
+$("pass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
 
+/* ---------- list ---------- */
 async function refresh() {
   const { data, error } = await db.from("promotions").select("*").order("position").order("created_at");
-  if (error) return fail(error);
-  rows = data;
-  $("list").innerHTML = rows.map((p, idx) => `
-    <div class="card item ${p.active ? "" : "off"}">
-      <img src="${p.image_url}">
-      <div>${p.title || "<small>sem título</small>"}</div>
-      <small>${p.duration_seconds}s${p.ends_at ? " · até " + new Date(p.ends_at).toLocaleString("pt-BR") : ""}</small><br>
-      <button onclick="move(${idx},-1)">◀</button>
-      <button onclick="move(${idx},1)">▶</button>
-      <button onclick="toggle('${p.id}',${!p.active})">${p.active ? "Pausar" : "Ativar"}</button>
-      <button onclick="del('${p.id}')">Apagar</button>
-    </div>`).join("") || "<small>Nenhuma imagem ainda.</small>";
+  if (error) return toast(error.message, true);
+  rows = data; render();
+}
+function render() {
+  const live = rows.filter(p => status(p)[1] === "live").length;
+  $("count").textContent = rows.length ? `(${live} no ar de ${rows.length})` : "";
+  if (!rows.length) { $("list").innerHTML = '<div class="empty">Nenhuma imagem ainda. Arraste a primeira acima 👆</div>'; return; }
+  $("list").innerHTML = rows.map((p, i) => {
+    const [label, cls] = status(p);
+    return `
+    <div class="item ${p.active ? "" : "paused-card"}" draggable="true" data-id="${p.id}">
+      <div class="thumb">
+        <img src="${esc(p.image_url)}" loading="lazy" draggable="false">
+        <span class="badge ${cls}">${label}</span><span class="num">${i + 1}</span>
+      </div>
+      <div class="body">
+        <label>Título<input data-f="title" value="${esc(p.title)}" placeholder="(opcional)"></label>
+        <div class="two">
+          <label>Segundos<input data-f="duration_seconds" type="number" min="2" value="${p.duration_seconds}"></label>
+          <span></span>
+          <label>Começa<input data-f="starts_at" type="datetime-local" value="${toLocalInput(p.starts_at)}"></label>
+          <label>Termina<input data-f="ends_at" type="datetime-local" value="${toLocalInput(p.ends_at)}"></label>
+        </div>
+        <div class="acts">
+          <button data-a="left" title="Mover para trás">◀</button>
+          <button data-a="right" title="Mover para frente">▶</button>
+          <button data-a="toggle">${p.active ? "Pausar" : "Ativar"}</button>
+          <button data-a="del" class="del">Apagar</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
 }
 
-async function upload() {
-  fail();
-  const f = $("file").files[0];
-  if (!f) return fail("Escolha uma imagem.");
-  if (f.size > 5 * 1024 * 1024) return fail("Imagem maior que 5 MB. Reduza antes de enviar.");
-  $("upBtn").disabled = true;
-  const path = crypto.randomUUID() + "." + (f.name.split(".").pop() || "jpg");
-  const up = await db.storage.from("promos").upload(path, f, { contentType: f.type });
-  if (up.error) { $("upBtn").disabled = false; return fail(up.error); }
-  const url = db.storage.from("promos").getPublicUrl(path).data.publicUrl;
-  const last = rows.length ? Math.max(...rows.map(r => r.position)) + 1 : 0;
-  const ins = await db.from("promotions").insert({
-    title: $("title").value || null,
-    image_url: url,
-    storage_path: path,
-    duration_seconds: +$("dur").value || 8,
-    starts_at: $("starts").value ? new Date($("starts").value).toISOString() : null,
-    ends_at: $("ends").value ? new Date($("ends").value).toISOString() : null,
-    position: last
-  });
-  $("upBtn").disabled = false;
-  if (ins.error) return fail(ins.error);
-  $("file").value = ""; $("title").value = "";
+/* edit fields: saves when you leave the field */
+$("list").addEventListener("change", async e => {
+  const f = e.target.dataset.f; if (!f) return;
+  const id = e.target.closest(".item").dataset.id;
+  let v = e.target.value;
+  if (f === "duration_seconds") { v = Math.max(2, parseInt(v) || 8); }
+  else if (f === "starts_at" || f === "ends_at") v = toISO(v);
+  else v = v.trim() || null;
+  const { error } = await db.from("promotions").update({ [f]: v }).eq("id", id);
+  if (error) return toast(error.message, true);
+  rows.find(r => r.id === id)[f] = v; render(); toast("Salvo ✓");
+});
+
+/* buttons on each card */
+$("list").addEventListener("click", async e => {
+  const a = e.target.dataset.a; if (!a) return;
+  const id = e.target.closest(".item").dataset.id;
+  const idx = rows.findIndex(r => r.id === id);
+  if (a === "toggle") {
+    const active = !rows[idx].active;
+    const { error } = await db.from("promotions").update({ active }).eq("id", id);
+    if (error) return toast(error.message, true);
+    rows[idx].active = active; render(); toast(active ? "Ativada" : "Pausada");
+  } else if (a === "del") {
+    if (!confirm("Apagar esta imagem? Não dá para desfazer.")) return;
+    await db.storage.from("promos").remove([rows[idx].storage_path]);
+    const { error } = await db.from("promotions").delete().eq("id", id);
+    if (error) return toast(error.message, true);
+    rows.splice(idx, 1); render(); toast("Apagada");
+  } else if (a === "left" || a === "right") {
+    const j = idx + (a === "left" ? -1 : 1);
+    if (j < 0 || j >= rows.length) return;
+    [rows[idx], rows[j]] = [rows[j], rows[idx]];
+    await savePositions();
+  }
+});
+
+async function savePositions() {
+  render();
+  const res = await Promise.all(rows.map((r, pos) => {
+    if (r.position === pos) return { error: null };
+    r.position = pos;
+    return db.from("promotions").update({ position: pos }).eq("id", r.id);
+  }));
+  const bad = res.find(r => r.error);
+  bad ? toast(bad.error.message, true) : toast("Ordem salva ✓");
+}
+
+/* drag cards to reorder */
+$("list").addEventListener("dragstart", e => {
+  const c = e.target.closest(".item"); if (!c) return;
+  dragId = c.dataset.id; c.classList.add("dragging");
+});
+$("list").addEventListener("dragend", () => { dragId = null; render(); });
+$("list").addEventListener("dragover", e => {
+  if (!dragId) return; e.preventDefault();
+  document.querySelectorAll(".dropbefore").forEach(x => x.classList.remove("dropbefore"));
+  const c = e.target.closest(".item"); if (c && c.dataset.id !== dragId) c.classList.add("dropbefore");
+});
+$("list").addEventListener("drop", async e => {
+  if (!dragId) return; e.preventDefault();
+  const target = e.target.closest(".item"); if (!target) return;
+  const from = rows.findIndex(r => r.id === dragId);
+  const [moved] = rows.splice(from, 1);
+  const to = rows.findIndex(r => r.id === target.dataset.id);
+  rows.splice(to, 0, moved);
+  dragId = null; await savePositions();
+});
+
+/* ---------- upload ---------- */
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+drop.onkeydown = e => { if (e.key === "Enter" || e.key === " ") $("file").click(); };
+$("file").onchange = e => { handleFiles(e.target.files); e.target.value = ""; };
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files.length) handleFiles(e.dataTransfer.files); });
+document.addEventListener("paste", e => {
+  const files = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith("image/"));
+  if (files.length && !$("app").hidden) handleFiles(files);
+});
+
+/* shrink big photos before upload (max 1920px, WebP) */
+async function compress(file) {
+  if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
+  try {
+    const bmp = await createImageBitmap(file);
+    const s = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/webp", .88));
+    return blob && blob.size < file.size ? blob : file;
+  } catch { return file; }
+}
+
+async function handleFiles(fileList) {
+  const files = [...fileList].filter(f => f.type.startsWith("image/"));
+  if (!files.length) return toast("Escolha arquivos de imagem.", true);
+  const q = $("queue"); q.innerHTML = "";
+  let pos = rows.length ? Math.max(...rows.map(r => r.position)) + 1 : 0;
+  let ok = 0;
+  for (const f of files) {
+    const line = document.createElement("div"); line.textContent = "⏳ " + f.name; q.appendChild(line);
+    try {
+      const blob = await compress(f);
+      const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg").replace("svg+xml", "svg");
+      const path = crypto.randomUUID() + "." + ext;
+      const up = await db.storage.from("promos").upload(path, blob, { contentType: blob.type });
+      if (up.error) throw up.error;
+      const url = db.storage.from("promos").getPublicUrl(path).data.publicUrl;
+      const ins = await db.from("promotions").insert({
+        title: f.name.replace(/\.[^.]+$/, ""),
+        image_url: url, storage_path: path,
+        duration_seconds: Math.max(2, parseInt($("dur").value) || 8),
+        starts_at: toISO($("starts").value), ends_at: toISO($("ends").value),
+        position: pos++
+      });
+      if (ins.error) { await db.storage.from("promos").remove([path]); throw ins.error; }
+      line.textContent = "✅ " + f.name; ok++;
+    } catch (err) { line.textContent = "❌ " + f.name + " — " + (err.message || err); line.style.color = "var(--bad)"; }
+  }
+  toast(`${ok} de ${files.length} enviada(s)`, ok < files.length);
   refresh();
 }
 
-async function toggle(id, active) { fail((await db.from("promotions").update({ active }).eq("id", id)).error); refresh(); }
-
-async function del(id) {
-  if (!confirm("Apagar esta imagem?")) return;
-  const p = rows.find(r => r.id === id);
-  await db.storage.from("promos").remove([p.storage_path]);
-  fail((await db.from("promotions").delete().eq("id", id)).error);
-  refresh();
-}
-
-async function move(idx, dir) {
-  const j = idx + dir;
-  if (j < 0 || j >= rows.length) return;
-  // rewrite positions 0..n so ties never happen
-  const order = rows.map(r => r.id);
-  [order[idx], order[j]] = [order[j], order[idx]];
-  await Promise.all(order.map((id, pos) => db.from("promotions").update({ position: pos }).eq("id", id)));
-  refresh();
-}
 init();
+setInterval(() => { if (!$("app").hidden) render(); }, 60000); // keeps "Live / Expired" badges fresh
 </script>
 </body>
 </html>
