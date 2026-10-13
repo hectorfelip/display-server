@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Promoções</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}
+  img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;opacity:0;transition:opacity .8s}
+  img.show{opacity:1}
+  #msg{position:absolute;inset:0;display:grid;place-items:center;color:#777;font:20px sans-serif}
+</style>
+</head>
+<body>
+<div id="msg">Carregando…</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const msg = document.getElementById("msg");
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let items = [], i = 0, currentImg = null;
+
+async function load() {
+  const { data, error } = await db.from("promotions").select("*")
+    .eq("active", true).order("position").order("created_at");
+  if (error) { console.error(error); return; }   // keep old list if the network fails
+  const now = Date.now();
+  items = data.filter(p =>
+    (!p.starts_at || new Date(p.starts_at) <= now) &&
+    (!p.ends_at || new Date(p.ends_at) >= now));
+  items.forEach(p => { new Image().src = p.image_url; }); // preload = no flicker
+}
+
+function show(url) {
+  const img = document.createElement("img");
+  img.src = url;
+  document.body.appendChild(img);
+  img.offsetWidth;                // force the browser to apply the starting style
+  img.classList.add("show");
+  const old = currentImg;
+  if (old) { old.classList.remove("show"); setTimeout(() => old.remove(), 900); }
+  currentImg = img;
+}
+
+async function loop() {
+  await load();
+  setInterval(load, 5 * 60 * 1000);          // refresh the list every 5 min
+  while (true) {
+    if (!items.length) { msg.style.display = "grid"; msg.textContent = "Sem promoções ativas"; await sleep(5000); continue; }
+    msg.style.display = "none";
+    const p = items[i++ % items.length];
+    show(p.image_url);
+    await sleep((p.duration_seconds || 8) * 1000);
+  }
+}
+loop();
+</script>
+</body>
+</html>

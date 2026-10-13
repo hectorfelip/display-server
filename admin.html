@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin - Promoções</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:900px;margin:24px auto;padding:0 16px;color:#222}
+  input,button{font:inherit;padding:8px;margin:4px 0}
+  button{cursor:pointer}
+  .card{border:1px solid #ddd;border-radius:8px;padding:12px;margin:12px 0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+  .item img{width:100%;height:120px;object-fit:cover;border-radius:6px}
+  .off{opacity:.45}
+  small{color:#666}
+  #err{color:#b00020}
+</style>
+</head>
+<body>
+<h1>Promoções</h1>
+<p id="err"></p>
+
+<div id="login" class="card" hidden>
+  <h3>Login</h3>
+  <input id="email" type="email" placeholder="email"><br>
+  <input id="pass" type="password" placeholder="password"><br>
+  <button onclick="login()">Entrar</button>
+</div>
+
+<div id="app" hidden>
+  <button onclick="logout()" style="float:right">Sair</button>
+  <div class="card">
+    <h3>Nova imagem</h3>
+    <input id="file" type="file" accept="image/*"><br>
+    <input id="title" placeholder="Título (opcional)"><br>
+    <label>Segundos na tela: <input id="dur" type="number" value="8" min="2" style="width:70px"></label><br>
+    <label>Começa em: <input id="starts" type="datetime-local"></label>
+    <label>Termina em: <input id="ends" type="datetime-local"></label><br>
+    <button id="upBtn" onclick="upload()">Enviar</button>
+  </div>
+  <h3>Imagens <small>(ordem de exibição, da esquerda para a direita)</small></h3>
+  <div id="list" class="grid"></div>
+  <p><small>Link da tela: <a href="display.html" target="_blank">display.html</a></small></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const $ = id => document.getElementById(id);
+const fail = e => { $("err").textContent = e ? (e.message || e) : ""; };
+let rows = [];
+
+async function init() {
+  const { data } = await db.auth.getSession();
+  const logged = !!data.session;
+  $("login").hidden = logged;
+  $("app").hidden = !logged;
+  if (logged) refresh();
+}
+async function login() {
+  fail();
+  const { error } = await db.auth.signInWithPassword({ email: $("email").value, password: $("pass").value });
+  if (error) return fail(error);
+  init();
+}
+async function logout() { await db.auth.signOut(); init(); }
+
+async function refresh() {
+  const { data, error } = await db.from("promotions").select("*").order("position").order("created_at");
+  if (error) return fail(error);
+  rows = data;
+  $("list").innerHTML = rows.map((p, idx) => `
+    <div class="card item ${p.active ? "" : "off"}">
+      <img src="${p.image_url}">
+      <div>${p.title || "<small>sem título</small>"}</div>
+      <small>${p.duration_seconds}s${p.ends_at ? " · até " + new Date(p.ends_at).toLocaleString("pt-BR") : ""}</small><br>
+      <button onclick="move(${idx},-1)">◀</button>
+      <button onclick="move(${idx},1)">▶</button>
+      <button onclick="toggle('${p.id}',${!p.active})">${p.active ? "Pausar" : "Ativar"}</button>
+      <button onclick="del('${p.id}')">Apagar</button>
+    </div>`).join("") || "<small>Nenhuma imagem ainda.</small>";
+}
+
+async function upload() {
+  fail();
+  const f = $("file").files[0];
+  if (!f) return fail("Escolha uma imagem.");
+  if (f.size > 5 * 1024 * 1024) return fail("Imagem maior que 5 MB. Reduza antes de enviar.");
+  $("upBtn").disabled = true;
+  const path = crypto.randomUUID() + "." + (f.name.split(".").pop() || "jpg");
+  const up = await db.storage.from("promos").upload(path, f, { contentType: f.type });
+  if (up.error) { $("upBtn").disabled = false; return fail(up.error); }
+  const url = db.storage.from("promos").getPublicUrl(path).data.publicUrl;
+  const last = rows.length ? Math.max(...rows.map(r => r.position)) + 1 : 0;
+  const ins = await db.from("promotions").insert({
+    title: $("title").value || null,
+    image_url: url,
+    storage_path: path,
+    duration_seconds: +$("dur").value || 8,
+    starts_at: $("starts").value ? new Date($("starts").value).toISOString() : null,
+    ends_at: $("ends").value ? new Date($("ends").value).toISOString() : null,
+    position: last
+  });
+  $("upBtn").disabled = false;
+  if (ins.error) return fail(ins.error);
+  $("file").value = ""; $("title").value = "";
+  refresh();
+}
+
+async function toggle(id, active) { fail((await db.from("promotions").update({ active }).eq("id", id)).error); refresh(); }
+
+async function del(id) {
+  if (!confirm("Apagar esta imagem?")) return;
+  const p = rows.find(r => r.id === id);
+  await db.storage.from("promos").remove([p.storage_path]);
+  fail((await db.from("promotions").delete().eq("id", id)).error);
+  refresh();
+}
+
+async function move(idx, dir) {
+  const j = idx + dir;
+  if (j < 0 || j >= rows.length) return;
+  // rewrite positions 0..n so ties never happen
+  const order = rows.map(r => r.id);
+  [order[idx], order[j]] = [order[j], order[idx]];
+  await Promise.all(order.map((id, pos) => db.from("promotions").update({ position: pos }).eq("id", id)));
+  refresh();
+}
+init();
+</script>
+</body>
+</html>
