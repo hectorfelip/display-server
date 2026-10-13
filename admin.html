@@ -11,26 +11,26 @@
   header{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
   header h1{font-size:18px;margin:0;flex:1}
   main{max-width:1100px;margin:0 auto;padding:20px}
-  button,input{font:inherit}
+  button,input,select{font:inherit}
   button{padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:#fff;cursor:pointer}
   button:hover{background:#f0f2f5}
   button.pri{background:var(--pri);border-color:var(--pri);color:#fff}
   button.pri:hover{background:#1d4ed8}
-  input{padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff}
+  input[type=text],input[type=email],input[type=password],input[type=number],input[type=datetime-local],input:not([type]),select{padding:8px;border:1px solid var(--line);border-radius:8px;width:100%;background:#fff}
   .box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
 
   #drop{border:2px dashed #b6bcc8;border-radius:12px;padding:36px 16px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s;background:#fafbfc}
   #drop.over{border-color:var(--pri);background:#eff4ff;color:var(--pri)}
   #drop b{display:block;font-size:17px;color:var(--txt);margin-bottom:4px}
-  .opts{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+  .opts{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px;align-items:flex-end}
   .opts label{display:flex;flex-direction:column;font-size:13px;color:var(--mut);gap:4px;flex:1;min-width:150px}
 
   #queue{margin-top:10px;font-size:14px}
   #queue div{padding:4px 0;color:var(--mut)}
 
-  .bar{display:flex;align-items:center;gap:10px;margin:8px 0 12px}
+  .bar{display:flex;align-items:center;gap:10px;margin:8px 0 12px;flex-wrap:wrap}
   .bar h2{font-size:16px;margin:0;flex:1}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
   .item{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;display:flex;flex-direction:column}
   .item.dragging{opacity:.4}
   .item.dropbefore{outline:3px solid var(--pri)}
@@ -39,6 +39,7 @@
   .badge{position:absolute;top:8px;left:8px;padding:2px 8px;border-radius:99px;font-size:12px;font-weight:600;color:#fff}
   .live{background:var(--ok)}.sched{background:var(--pri)}.exp{background:var(--bad)}.paused{background:#6b7280}
   .num{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.65);color:#fff;border-radius:99px;padding:2px 9px;font-size:12px}
+  .dim{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.65);color:#fff;border-radius:6px;padding:1px 7px;font-size:11px}
   .body{padding:10px;display:flex;flex-direction:column;gap:8px}
   .body label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:3px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -47,6 +48,18 @@
   .del{color:var(--bad)}
   .item.paused-card .thumb img{opacity:.4}
   .empty{color:var(--mut);padding:30px;text-align:center}
+
+  .where{font-size:12px;font-weight:600}
+  .where.all{color:var(--mut)} .where.some{color:var(--pri)}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .body label.chip,label.chip{flex-direction:row;align-items:center;gap:5px;border:1px solid var(--line);border-radius:99px;padding:3px 10px;font-size:12px;color:var(--txt);background:#fafbfc;cursor:pointer;min-width:0;flex:0 0 auto}
+  label.chip input{width:auto;margin:0}
+
+  .srow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .srow:last-child{border-bottom:0}
+  .srow button{padding:5px 9px;font-size:13px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#b6bcc8;flex:none}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 3px #16a34a33}
 
   #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1d2430;color:#fff;padding:10px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:.25s;z-index:20}
   #toast.show{opacity:1}
@@ -58,7 +71,6 @@
 <body>
 <header>
   <h1>Promoções</h1>
-  <a id="viewLink" href="index.html" target="_blank"><button id="viewBtn" hidden>Ver a tela ↗</button></a>
   <button id="outBtn" onclick="logout()" hidden>Sair</button>
 </header>
 
@@ -71,6 +83,19 @@
   </div>
 
   <div id="app" hidden>
+
+    <!-- SCREENS -->
+    <div class="box">
+      <div class="bar" style="margin-top:0"><h2>Telas <small id="scrCount" style="color:var(--mut);font-weight:400"></small></h2></div>
+      <div id="screens"></div>
+      <div class="opts">
+        <label>Nome da tela<input id="scrName" placeholder="Ex: TV Entrada"></label>
+        <label>Código no link (opcional)<input id="scrSlug" placeholder="ex: entrada"></label>
+        <button class="pri" onclick="addScreen()">Adicionar tela</button>
+      </div>
+    </div>
+
+    <!-- UPLOAD -->
     <div class="box">
       <div id="drop" tabindex="0">
         <b>Arraste as imagens aqui</b>
@@ -81,13 +106,18 @@
         <label>Segundos na tela (padrão)<input id="dur" type="number" value="8" min="2"></label>
         <label>Começa em (opcional)<input id="starts" type="datetime-local"></label>
         <label>Termina em (opcional)<input id="ends" type="datetime-local"></label>
+        <div style="flex-basis:100%">
+          <small style="color:var(--mut)">Mostrar em (nenhuma marcada = todas as telas)</small>
+          <div id="targets" class="chips" style="margin-top:6px"></div>
+        </div>
       </div>
       <div id="queue"></div>
     </div>
 
     <div class="bar">
       <h2>Imagens <small id="count" style="color:var(--mut);font-weight:400"></small></h2>
-      <small style="color:var(--mut)">Arraste os cartões para mudar a ordem</small>
+      <select id="filter" style="width:auto"><option value="">Todas as imagens</option></select>
+      <small id="hint" style="color:var(--mut)">Arraste os cartões para mudar a ordem</small>
     </div>
     <div id="list" class="grid"></div>
   </div>
@@ -99,7 +129,8 @@
 <script>
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const $ = id => document.getElementById(id);
-let rows = [], dragId = null;
+let rows = [], screens = [], dragId = null;
+const uploadTargets = new Set();
 
 /* ---------- helpers ---------- */
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -109,6 +140,8 @@ function toast(msg, isErr) {
 }
 const toLocalInput = iso => { if (!iso) return ""; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const toISO = v => v ? new Date(v).toISOString() : null;
+const slugify = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40);
+const isOnline = s => s.last_seen && Date.now() - new Date(s.last_seen) < 120000;
 function status(p) {
   const n = Date.now();
   if (!p.active) return ["Pausada", "paused"];
@@ -121,9 +154,8 @@ function status(p) {
 async function init() {
   const { data } = await db.auth.getSession();
   const logged = !!data.session;
-  $("login").hidden = logged; $("app").hidden = !logged;
-  $("outBtn").hidden = !logged; $("viewBtn").hidden = !logged;
-  if (logged) refresh();
+  $("login").hidden = logged; $("app").hidden = !logged; $("outBtn").hidden = !logged;
+  if (logged) { await loadScreens(); refresh(); }
 }
 async function login() {
   const { error } = await db.auth.signInWithPassword({ email: $("email").value.trim(), password: $("pass").value });
@@ -133,6 +165,68 @@ async function login() {
 async function logout() { await db.auth.signOut(); init(); }
 $("pass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
 
+/* ---------- screens ---------- */
+async function loadScreens() {
+  const { data, error } = await db.from("screens").select("*").order("created_at");
+  if (error) return toast("Telas: " + error.message + " (rodou o setup-screens.sql?)", true);
+  screens = data; renderScreens(); renderTargets(); renderFilter(); render();
+}
+async function pollScreens() {            // only refreshes the online/offline list, never the image cards
+  const { data } = await db.from("screens").select("*").order("created_at");
+  if (data) { screens = data; renderScreens(); }
+}
+function renderScreens() {
+  const on = screens.filter(isOnline).length;
+  $("scrCount").textContent = screens.length ? `(${on} online de ${screens.length})` : "";
+  $("screens").innerHTML = screens.length ? screens.map(s => `
+    <div class="srow">
+      <span class="dot ${isOnline(s) ? "on" : ""}"></span>
+      <b>${esc(s.name)}</b> <small style="color:var(--mut)">${esc(s.slug)}</small>
+      <small style="color:var(--mut)">${s.width ? s.width + "×" + s.height : "resolução ainda desconhecida"}${
+        isOnline(s) && s.current_title ? " · mostrando: " + esc(s.current_title)
+        : (!isOnline(s) && s.last_seen ? " · visto em " + new Date(s.last_seen).toLocaleString("pt-BR") : "")}</small>
+      <span style="flex:1"></span>
+      <button data-sa="copy" data-slug="${esc(s.slug)}">Copiar link</button>
+      <button data-sa="del" data-id="${s.id}" class="del">Remover</button>
+    </div>`).join("")
+    : '<div class="empty" style="padding:10px">Nenhuma tela cadastrada. Sem telas, todas as imagens tocam em qualquer link.</div>';
+}
+$("screens").addEventListener("click", async e => {
+  const a = e.target.dataset.sa; if (!a) return;
+  if (a === "copy") {
+    const url = location.href.replace(/[^/]*$/, "").split("?")[0] + "?screen=" + e.target.dataset.slug;
+    try { await navigator.clipboard.writeText(url); toast("Link copiado ✓"); } catch { prompt("Copie o link:", url); }
+  } else if (a === "del") {
+    if (!confirm("Remover esta tela? As imagens marcadas só para ela deixam de aparecer em qualquer lugar.")) return;
+    const { error } = await db.from("screens").delete().eq("id", e.target.dataset.id);
+    if (error) return toast(error.message, true);
+    await loadScreens(); toast("Tela removida");
+  }
+});
+async function addScreen() {
+  const name = $("scrName").value.trim();
+  if (!name) return toast("Dê um nome à tela.", true);
+  const slug = slugify($("scrSlug").value.trim() || name);
+  if (slug.length < 2) return toast("Código inválido (use letras e números).", true);
+  const { error } = await db.from("screens").insert({ name, slug });
+  if (error) return toast(error.code === "23505" ? "Já existe uma tela com esse código." : error.message, true);
+  $("scrName").value = ""; $("scrSlug").value = "";
+  await loadScreens(); toast("Tela adicionada ✓");
+}
+function renderTargets() {
+  $("targets").innerHTML = screens.length
+    ? screens.map(s => `<label class="chip"><input type="checkbox" value="${esc(s.slug)}" ${uploadTargets.has(s.slug) ? "checked" : ""}>${esc(s.name)}</label>`).join("")
+    : '<small style="color:var(--mut)">Cadastre telas acima para escolher onde cada imagem aparece.</small>';
+}
+$("targets").addEventListener("change", e => { e.target.checked ? uploadTargets.add(e.target.value) : uploadTargets.delete(e.target.value); });
+function renderFilter() {
+  const cur = $("filter").value;
+  $("filter").innerHTML = '<option value="">Todas as imagens</option>' +
+    screens.map(s => `<option value="${esc(s.slug)}">Só o que toca em: ${esc(s.name)}</option>`).join("");
+  $("filter").value = screens.some(s => s.slug === cur) ? cur : "";
+}
+$("filter").addEventListener("change", render);
+
 /* ---------- list ---------- */
 async function refresh() {
   const { data, error } = await db.from("promotions").select("*").order("position").order("created_at");
@@ -140,18 +234,30 @@ async function refresh() {
   rows = data; render();
 }
 function render() {
-  const live = rows.filter(p => status(p)[1] === "live").length;
-  $("count").textContent = rows.length ? `(${live} no ar de ${rows.length})` : "";
-  if (!rows.length) { $("list").innerHTML = '<div class="empty">Nenhuma imagem ainda. Arraste a primeira acima 👆</div>'; return; }
-  $("list").innerHTML = rows.map((p, i) => {
+  const flt = $("filter").value;
+  const view = flt ? rows.filter(p => !(p.screen_slugs || []).length || p.screen_slugs.includes(flt)) : rows;
+  const canMove = !flt;
+  $("hint").textContent = canMove ? "Arraste os cartões para mudar a ordem" : "Para mudar a ordem, volte para “Todas as imagens”";
+  const live = view.filter(p => status(p)[1] === "live").length;
+  $("count").textContent = view.length ? `(${live} no ar de ${view.length})` : "";
+  if (!view.length) { $("list").innerHTML = '<div class="empty">Nenhuma imagem aqui. Arraste a primeira acima 👆</div>'; return; }
+  $("list").innerHTML = view.map((p, i) => {
     const [label, cls] = status(p);
+    const tgt = p.screen_slugs || [];
+    const where = tgt.length
+      ? "Só em: " + tgt.map(sl => screens.find(s => s.slug === sl)?.name || sl + " (removida)").join(", ")
+      : "Todas as telas";
+    const chips = screens.map(s => `<label class="chip"><input type="checkbox" data-f="screen_slugs" value="${esc(s.slug)}" ${tgt.includes(s.slug) ? "checked" : ""}>${esc(s.name)}</label>`).join("");
     return `
-    <div class="item ${p.active ? "" : "paused-card"}" draggable="true" data-id="${p.id}">
+    <div class="item ${p.active ? "" : "paused-card"}" ${canMove ? 'draggable="true"' : ""} data-id="${p.id}">
       <div class="thumb">
-        <img src="${esc(p.image_url)}" loading="lazy" draggable="false">
-        <span class="badge ${cls}">${label}</span><span class="num">${i + 1}</span>
+        <img src="${esc(p.image_url)}" loading="lazy" draggable="false"
+             onload="this.parentNode.querySelector('.dim').textContent=this.naturalWidth+'×'+this.naturalHeight">
+        <span class="badge ${cls}">${label}</span><span class="num">${i + 1}</span><span class="dim"></span>
       </div>
       <div class="body">
+        <div class="where ${tgt.length ? "some" : "all"}">${esc(where)}</div>
+        ${screens.length ? `<div class="chips">${chips}</div>` : ""}
         <label>Título<input data-f="title" value="${esc(p.title)}" placeholder="(opcional)"></label>
         <div class="two">
           <label>Segundos<input data-f="duration_seconds" type="number" min="2" value="${p.duration_seconds}"></label>
@@ -160,8 +266,7 @@ function render() {
           <label>Termina<input data-f="ends_at" type="datetime-local" value="${toLocalInput(p.ends_at)}"></label>
         </div>
         <div class="acts">
-          <button data-a="left" title="Mover para trás">◀</button>
-          <button data-a="right" title="Mover para frente">▶</button>
+          ${canMove ? '<button data-a="left" title="Mover para trás">◀</button><button data-a="right" title="Mover para frente">▶</button>' : ""}
           <button data-a="toggle">${p.active ? "Pausar" : "Ativar"}</button>
           <button data-a="del" class="del">Apagar</button>
         </div>
@@ -173,14 +278,20 @@ function render() {
 /* edit fields: saves when you leave the field */
 $("list").addEventListener("change", async e => {
   const f = e.target.dataset.f; if (!f) return;
-  const id = e.target.closest(".item").dataset.id;
+  const card = e.target.closest(".item"), id = card.dataset.id;
+  const row = rows.find(r => r.id === id);
   let v = e.target.value;
-  if (f === "duration_seconds") { v = Math.max(2, parseInt(v) || 8); }
+  if (f === "screen_slugs") {
+    // keep slugs of screens that were removed, so the image never jumps to "all screens" by accident
+    const orphans = (row.screen_slugs || []).filter(s => !screens.some(x => x.slug === s));
+    v = [...card.querySelectorAll('[data-f="screen_slugs"]:checked')].map(x => x.value).concat(orphans);
+  }
+  else if (f === "duration_seconds") { v = Math.max(2, parseInt(v) || 8); }
   else if (f === "starts_at" || f === "ends_at") v = toISO(v);
   else v = v.trim() || null;
   const { error } = await db.from("promotions").update({ [f]: v }).eq("id", id);
   if (error) return toast(error.message, true);
-  rows.find(r => r.id === id)[f] = v; render(); toast("Salvo ✓");
+  row[f] = v; render(); toast("Salvo ✓");
 });
 
 /* buttons on each card */
@@ -218,7 +329,7 @@ async function savePositions() {
   bad ? toast(bad.error.message, true) : toast("Ordem salva ✓");
 }
 
-/* drag cards to reorder */
+/* drag cards to reorder (only in the "all images" view) */
 $("list").addEventListener("dragstart", e => {
   const c = e.target.closest(".item"); if (!c) return;
   dragId = c.dataset.id; c.classList.add("dragging");
@@ -252,16 +363,17 @@ document.addEventListener("paste", e => {
   if (files.length && !$("app").hidden) handleFiles(files);
 });
 
-/* shrink big photos before upload (max 1920px, WebP) */
+/* shrink only very big photos (max 3840px, WebP) so 4K screens stay sharp */
 async function compress(file) {
   if (file.type === "image/gif" || file.type === "image/svg+xml") return file;
   try {
     const bmp = await createImageBitmap(file);
-    const s = Math.min(1, 1920 / Math.max(bmp.width, bmp.height));
+    const s = Math.min(1, 3840 / Math.max(bmp.width, bmp.height));
+    if (s === 1 && file.size < 1.5 * 1024 * 1024) return file;   // already small: keep original quality
     const c = document.createElement("canvas");
     c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
     c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
-    const blob = await new Promise(r => c.toBlob(r, "image/webp", .88));
+    const blob = await new Promise(r => c.toBlob(r, "image/webp", .9));
     return blob && blob.size < file.size ? blob : file;
   } catch { return file; }
 }
@@ -271,6 +383,7 @@ async function handleFiles(fileList) {
   if (!files.length) return toast("Escolha arquivos de imagem.", true);
   const q = $("queue"); q.innerHTML = "";
   let pos = rows.length ? Math.max(...rows.map(r => r.position)) + 1 : 0;
+  const targets = [...uploadTargets].filter(sl => screens.some(s => s.slug === sl));
   let ok = 0;
   for (const f of files) {
     const line = document.createElement("div"); line.textContent = "⏳ " + f.name; q.appendChild(line);
@@ -286,6 +399,7 @@ async function handleFiles(fileList) {
         image_url: url, storage_path: path,
         duration_seconds: Math.max(2, parseInt($("dur").value) || 8),
         starts_at: toISO($("starts").value), ends_at: toISO($("ends").value),
+        screen_slugs: targets,
         position: pos++
       });
       if (ins.error) { await db.storage.from("promos").remove([path]); throw ins.error; }
@@ -297,7 +411,8 @@ async function handleFiles(fileList) {
 }
 
 init();
-setInterval(() => { if (!$("app").hidden) render(); }, 60000); // keeps "Live / Expired" badges fresh
+setInterval(() => { if (!$("app").hidden) render(); }, 60000);        // keeps "No ar / Expirada" badges fresh
+setInterval(() => { if (!$("app").hidden) pollScreens(); }, 30000);   // keeps online/offline fresh
 </script>
 </body>
 </html>

@@ -7,22 +7,10 @@
 <style>
   html,body{margin:0;width:100%;height:100%;background:#000;overflow:hidden;cursor:none}
 
+  /* default: the WHOLE image is always visible (never cropped, never stretched) */
   .slide{position:absolute;inset:0;opacity:0;transition:opacity .8s}
   .slide.show{opacity:1}
-  .slide img{position:absolute;inset:0;width:100%;height:100%;display:block}
-
-  /* default ("blur"): full image visible + blurred copy fills the empty sides */
-  .slide .fg{object-fit:contain}
-  .slide .bg{object-fit:cover;filter:blur(40px) brightness(.55);transform:scale(1.15)}
-
-  /* other modes, chosen with ?fit=... in the URL */
-  .fit-contain .bg{display:none}                    /* black bars */
-  .fit-cover   .bg{display:none} .fit-cover .fg{object-fit:cover}  /* fills screen, may crop */
-  .fit-fill    .bg{display:none} .fit-fill  .fg{object-fit:fill}   /* fills screen, may stretch */
-
-  /* in full screen (and no ?fit in the URL): cover the whole screen */
-  body.is-fs .bg{display:none}
-  body.is-fs .fg{object-fit:cover}
+  .slide img{position:absolute;inset:0;width:100%;height:100%;display:block;object-fit:contain}
 
   #msg{position:absolute;inset:0;display:grid;place-items:center;color:#777;font:20px sans-serif}
 </style>
@@ -36,19 +24,13 @@ const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const msg = document.getElementById("msg");
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// ?fit=blur (default) | contain | cover | fill
-const fit = new URLSearchParams(location.search).get("fit");
-document.body.classList.add("fit-" + (["contain", "cover", "fill"].includes(fit) ? fit : "blur"));
+// Optional: ?bg=ffffff changes the color of the empty bars (default black)
+const bg = new URLSearchParams(location.search).get("bg");
+if (bg && /^[0-9a-f]{3,6}$/i.test(bg)) document.documentElement.style.background = document.body.style.background = "#" + bg;
 
-// Full screen detection: works for double-click/F key AND for the browser's F11
-function checkFullscreen() {
-  const fs = !!document.fullscreenElement ||
-    (innerWidth >= screen.width - 2 && innerHeight >= screen.height - 2);
-  document.body.classList.toggle("is-fs", fs && !fit);   // an explicit ?fit= always wins
-}
-["resize", "fullscreenchange"].forEach(ev => addEventListener(ev, checkFullscreen));
-document.addEventListener("fullscreenchange", checkFullscreen);
-checkFullscreen();
+// Which screen is this? Set in the link: ?screen=entrada  (register it in the admin panel first)
+const screenSlug = (new URLSearchParams(location.search).get("screen") || "").toLowerCase();
+
 // double-click or press F to enter/exit full screen (browsers require a user action)
 function toggleFs() { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); }
 addEventListener("dblclick", toggleFs);
@@ -63,14 +45,16 @@ async function load() {
   const now = Date.now();
   items = data.filter(p =>
     (!p.starts_at || new Date(p.starts_at) <= now) &&
-    (!p.ends_at || new Date(p.ends_at) >= now));
+    (!p.ends_at || new Date(p.ends_at) >= now) &&
+    // image with no screen list = for everyone; otherwise only for the listed screens
+    (!(p.screen_slugs || []).length || p.screen_slugs.includes(screenSlug)));
   items.forEach(p => { new Image().src = p.image_url; }); // preload = no flicker
 }
 
 function show(url) {
   const slide = document.createElement("div");
   slide.className = "slide";
-  slide.innerHTML = `<img class="bg" src="${url}" alt=""><img class="fg" src="${url}" alt="">`;
+  slide.innerHTML = `<img src="${url}" alt="">`;
   document.body.appendChild(slide);
   slide.offsetWidth;               // force the browser to apply the starting style
   slide.classList.add("show");
@@ -79,13 +63,29 @@ function show(url) {
   current = slide;
 }
 
+// Heartbeat: tells the admin panel "this screen is alive", its resolution, and what it shows
+let nowShowing = "";
+async function beat() {
+  if (!screenSlug) return;
+  try {
+    await db.rpc("screen_heartbeat", {
+      p_slug: screenSlug,
+      p_w: Math.round(screen.width * (devicePixelRatio || 1)),
+      p_h: Math.round(screen.height * (devicePixelRatio || 1)),
+      p_current: nowShowing
+    });
+  } catch (e) { /* offline: try again next minute */ }
+}
+
 async function loop() {
   await load();
   setInterval(load, 5 * 60 * 1000);          // refresh the list every 5 min
+  beat(); setInterval(beat, 60 * 1000);      // heartbeat every minute
   while (true) {
     if (!items.length) { msg.style.display = "grid"; msg.textContent = "Sem promoções ativas"; await sleep(5000); continue; }
     msg.style.display = "none";
     const p = items[i++ % items.length];
+    nowShowing = p.title || "";
     show(p.image_url);
     await sleep((p.duration_seconds || 8) * 1000);
   }
